@@ -1,0 +1,16 @@
+.env
+.env.*
+.git/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+htmlcov/
+dist/
+build/
+node_modules/
+staticfiles/
+media/
+.DS_Store
+.agents/
+.codex/

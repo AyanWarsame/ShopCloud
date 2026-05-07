@@ -1,0 +1,59 @@
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-shopcloud}
+      POSTGRES_USER: ${POSTGRES_USER:-shopcloud}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-shopcloud}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  backend:
+    build:
+      context: ./shopcloud-backend
+    env_file:
+      - .env.local
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - ./shopcloud-backend:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+      - redis
+
+  worker:
+    build:
+      context: ./shopcloud-backend
+    env_file:
+      - .env.local
+    command: celery -A config worker -l info
+    volumes:
+      - ./shopcloud-backend:/app
+    depends_on:
+      - backend
+      - redis
+
+  frontend:
+    build:
+      context: ./shopcloud-frontend
+    environment:
+      VITE_API_PROXY_TARGET: http://backend:8000
+    command: npm run dev -- --host 0.0.0.0
+    volumes:
+      - ./shopcloud-frontend:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:

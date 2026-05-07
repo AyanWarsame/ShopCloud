@@ -1,0 +1,15 @@
+export const endpoints = {
+  token: '/api/v1/auth/token/',
+  refresh: '/api/v1/auth/token/refresh/',
+  register: '/api/v1/auth/users/register/',
+  me: '/api/v1/auth/users/me/',
+  products: '/api/v1/products/',
+  categories: '/api/v1/products/categories/',
+  cart: '/api/v1/cart/',
+  cartItems: '/api/v1/cart/items/',
+  orders: '/api/v1/orders/',
+  createOrder: '/api/v1/orders/create/',
+  addresses: '/api/v1/auth/addresses/',
+  payments: '/api/v1/payments/',
+  createPaymentIntent: '/api/v1/payments/create_intent/',
+}
