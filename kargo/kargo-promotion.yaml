@@ -1,0 +1,175 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kargo
+
+---
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Project
+metadata:
+  name: shopcloud
+  namespace: kargo
+spec:
+  description: "ShopCloud e-commerce platform promotion pipeline"
+
+---
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Warehouse
+metadata:
+  name: shopcloud-ecr
+  namespace: kargo
+spec:
+  description: "ECR image warehouse for ShopCloud"
+  subscriptions:
+  - image:
+      repoURL: $AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/shopcloud-backend
+  - image:
+      repoURL: $AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/shopcloud-frontend
+
+---
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: dev
+  namespace: kargo
+spec:
+  displayName: "Development"
+  description: "Development environment"
+  promotionMechanisms:
+    argoCd:
+      applications:
+      - name: shopcloud-backend-dev
+        namespace: argocd
+      - name: shopcloud-frontend-dev
+        namespace: argocd
+  verification:
+    analysisTemplates:
+    - name: dev-smoke-tests
+      namespace: kargo
+  subscriptions:
+    warehouse: shopcloud-ecr
+    upstreamStages:
+    - name: ""  # Subscribe to warehouse directly
+  kargoNamespaceMetadata:
+    labels:
+      kargo.akuity.io/project: shopcloud
+
+---
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: staging
+  namespace: kargo
+spec:
+  displayName: "Staging"
+  description: "Staging environment - manual promotion"
+  promotionMechanisms:
+    argoCd:
+      applications:
+      - name: shopcloud-backend-staging
+        namespace: argocd
+      - name: shopcloud-frontend-staging
+        namespace: argocd
+  verification:
+    analysisTemplates:
+    - name: staging-integration-tests
+      namespace: kargo
+  subscriptions:
+    upstreamStages:
+    - name: dev
+  kargoNamespaceMetadata:
+    labels:
+      kargo.akuity.io/project: shopcloud
+
+---
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: production
+  namespace: kargo
+spec:
+  displayName: "Production"
+  description: "Production environment - manual promotion only"
+  promotionMechanisms:
+    argoCd:
+      applications:
+      - name: shopcloud-backend-prod
+        namespace: argocd
+      - name: shopcloud-frontend-prod
+        namespace: argocd
+  verification:
+    analysisTemplates:
+    - name: prod-health-checks
+      namespace: kargo
+  subscriptions:
+    upstreamStages:
+    - name: staging
+  kargoNamespaceMetadata:
+    labels:
+      kargo.akuity.io/project: shopcloud
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: dev-smoke-tests
+  namespace: kargo
+spec:
+  metrics:
+  - name: api-health
+    interval: 30s
+    successCriteria: result == "ok"
+    provider:
+      httpsd:
+        url: "http://backend-service.dev.svc.cluster.local:8000/health/"
+        successCodes: ["200"]
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: staging-integration-tests
+  namespace: kargo
+spec:
+  metrics:
+  - name: api-health
+    interval: 30s
+    timeout: 5m
+    successCriteria: result == "ok"
+    provider:
+      httpsd:
+        url: "http://backend-service.staging.svc.cluster.local:8000/health/"
+        successCodes: ["200"]
+  - name: frontend-health
+    interval: 30s
+    timeout: 5m
+    successCriteria: result == "ok"
+    provider:
+      httpsd:
+        url: "http://frontend-service.staging.svc.cluster.local:3000/health/"
+        successCodes: ["200"]
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: prod-health-checks
+  namespace: kargo
+spec:
+  metrics:
+  - name: api-health
+    interval: 30s
+    timeout: 5m
+    successCriteria: result == "ok"
+    provider:
+      httpsd:
+        url: "http://backend-service.production.svc.cluster.local:8000/health/"
+        successCodes: ["200"]
+  - name: frontend-health
+    interval: 30s
+    timeout: 5m
+    successCriteria: result == "ok"
+    provider:
+      httpsd:
+        url: "http://frontend-service.production.svc.cluster.local:3000/health/"
+        successCodes: ["200"]

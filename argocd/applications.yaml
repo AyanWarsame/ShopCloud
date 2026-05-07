@@ -1,0 +1,169 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: shopcloud-backend-dev
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/AyanWarsame/ShopCloud-GitOps.git
+    targetRevision: dev
+    path: argocd/dev/backend
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: dev
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: shopcloud-frontend-dev
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/AyanWarsame/ShopCloud-GitOps.git
+    targetRevision: dev
+    path: argocd/dev/frontend
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: dev
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: shopcloud-backend-staging
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/AyanWarsame/ShopCloud-GitOps.git
+    targetRevision: staging
+    path: argocd/staging/backend
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: staging
+  syncPolicy:
+    syncOptions:
+    - CreateNamespace=true
+    # Manual sync for staging
+  notifications:
+    enabled: true
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: shopcloud-frontend-staging
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/AyanWarsame/ShopCloud-GitOps.git
+    targetRevision: staging
+    path: argocd/staging/frontend
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: staging
+  syncPolicy:
+    syncOptions:
+    - CreateNamespace=true
+    # Manual sync for staging
+  notifications:
+    enabled: true
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: shopcloud-backend-prod
+  namespace: argocd
+spec:
+  project: production-project
+  source:
+    repoURL: https://github.com/AyanWarsame/ShopCloud-GitOps.git
+    targetRevision: production
+    path: argocd/production/backend
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: production
+  syncPolicy:
+    syncOptions:
+    - CreateNamespace=true
+    # Manual sync ONLY for production
+  notifications:
+    enabled: true
+  # Require manual approval for production
+  revisionHistoryLimit: 10
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: shopcloud-frontend-prod
+  namespace: argocd
+spec:
+  project: production-project
+  source:
+    repoURL: https://github.com/AyanWarsame/ShopCloud-GitOps.git
+    targetRevision: production
+    path: argocd/production/frontend
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: production
+  syncPolicy:
+    syncOptions:
+    - CreateNamespace=true
+    # Manual sync ONLY for production
+  notifications:
+    enabled: true
+  # Require manual approval for production
+  revisionHistoryLimit: 10
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: argocd
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: production-deployer
+  namespace: argocd
+rules:
+- apiGroups: ["argoproj.io"]
+  resources: ["applications"]
+  verbs: ["get", "list", "watch", "patch", "update"]
+  resourceNames:
+  - shopcloud-backend-prod
+  - shopcloud-frontend-prod
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: production-deployer
+  namespace: argocd
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: production-deployer
+subjects:
+- kind: Group
+  name: "production-admins"
+  apiGroup: rbac.authorization.k8s.io
