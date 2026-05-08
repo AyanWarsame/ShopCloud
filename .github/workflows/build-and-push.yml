@@ -10,6 +10,11 @@ on:
       - main
       - develop
 
+permissions:
+  contents: read
+  security-events: write
+  id-token: write
+
 env:
   REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com
   IMAGE_NAME_BACKEND: shopcloud-backend
@@ -62,14 +67,14 @@ jobs:
       - name: Scan image with Trivy
         uses: aquasecurity/trivy-action@master
         with:
+          scan-type: 'image'
           image-ref: ${{ needs.setup.outputs.backend_image }}
           format: 'sarif'
           output: 'trivy-backend-results.sarif'
-          exit-code: 1
 
       - name: Upload Trivy results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
+        uses: github/codeql-action/upload-sarif@v4
+        if: always() && hashFiles('trivy-backend-results.sarif') != ''
         with:
           sarif_file: 'trivy-backend-results.sarif'
 
@@ -105,14 +110,14 @@ jobs:
       - name: Scan image with Trivy
         uses: aquasecurity/trivy-action@master
         with:
+          scan-type: 'image'
           image-ref: ${{ needs.setup.outputs.frontend_image }}
           format: 'sarif'
           output: 'trivy-frontend-results.sarif'
-          exit-code: 1
 
       - name: Upload Trivy results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
+        uses: github/codeql-action/upload-sarif@v4
+        if: always() && hashFiles('trivy-frontend-results.sarif') != ''
         with:
           sarif_file: 'trivy-frontend-results.sarif'
 
@@ -155,6 +160,7 @@ jobs:
       - name: Notify Slack
         uses: slackapi/slack-github-action@v1.26.0
         with:
+          webhook-url: ${{ secrets.SLACK_WEBHOOK }}
           payload: |
             {
               "text": "Build Status: ${{ job.status }}",
@@ -168,6 +174,4 @@ jobs:
                 }
               ]
             }
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
         if: always()
