@@ -2,176 +2,51 @@ name: Build & Push to ECR
 
 on:
   push:
-    branches:
-      - main
-      - develop
-  pull_request:
-    branches:
-      - main
-      - develop
-
-permissions:
-  contents: read
-  security-events: write
-  id-token: write
+    branches: [main]
 
 env:
-  REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com
-  IMAGE_NAME_BACKEND: shopcloud-backend
-  IMAGE_NAME_FRONTEND: shopcloud-frontend
-  IMAGE_TAG: ${{ github.sha }}
-  LATEST_TAG: latest
+  AWS_REGION: us-east-1
+  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com
 
 jobs:
-  setup:
-    runs-on: ubuntu-latest
-    outputs:
-      backend_image: ${{ steps.image.outputs.backend_image }}
-      frontend_image: ${{ steps.image.outputs.frontend_image }}
-    steps:
-      - name: Generate image names
-        id: image
-        run: |
-          echo "backend_image=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}:${{ env.IMAGE_TAG }}" >> $GITHUB_OUTPUT
-          echo "frontend_image=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}:${{ env.IMAGE_TAG }}" >> $GITHUB_OUTPUT
-
   build-backend:
     runs-on: ubuntu-latest
-    needs: setup
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
+          aws-region: ${{ env.AWS_REGION }}
 
-      - name: Login to Amazon ECR
+      - name: Login to ECR
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build Docker image (Backend)
+      - name: Build & push backend
         run: |
-          docker build -t ${{ needs.setup.outputs.backend_image }} \
-                       -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}:${{ env.LATEST_TAG }} \
-                       -f shopcloud-backend/Dockerfile \
-                       shopcloud-backend/
-
-      - name: Push to ECR (Backend)
-        run: |
-          docker push ${{ needs.setup.outputs.backend_image }}
-          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}:${{ env.LATEST_TAG }}
-
-      - name: Scan image with Trivy
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: 'image'
-          image-ref: ${{ needs.setup.outputs.backend_image }}
-          format: 'sarif'
-          output: 'trivy-backend-results.sarif'
-
-      - name: Upload Trivy results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v4
-        if: always() && hashFiles('trivy-backend-results.sarif') != ''
-        with:
-          sarif_file: 'trivy-backend-results.sarif'
+          IMAGE=${{ env.ECR_REGISTRY }}/shopcloud-backend:${{ github.sha }}
+          docker build -t $IMAGE -f shopcloud-backend/Dockerfile ./shopcloud-backend
+          docker push $IMAGE
 
   build-frontend:
     runs-on: ubuntu-latest
-    needs: setup
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
+          aws-region: ${{ env.AWS_REGION }}
 
-      - name: Login to Amazon ECR
+      - name: Login to ECR
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build Docker image (Frontend)
+      - name: Build & push frontend
         run: |
-          docker build -t ${{ needs.setup.outputs.frontend_image }} \
-                       -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}:${{ env.LATEST_TAG }} \
-                       -f shopcloud-frontend/Dockerfile \
-                       shopcloud-frontend/
-
-      - name: Push to ECR (Frontend)
-        run: |
-          docker push ${{ needs.setup.outputs.frontend_image }}
-          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}:${{ env.LATEST_TAG }}
-
-      - name: Scan image with Trivy
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: 'image'
-          image-ref: ${{ needs.setup.outputs.frontend_image }}
-          format: 'sarif'
-          output: 'trivy-frontend-results.sarif'
-
-      - name: Upload Trivy results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v4
-        if: always() && hashFiles('trivy-frontend-results.sarif') != ''
-        with:
-          sarif_file: 'trivy-frontend-results.sarif'
-
-  update-manifest:
-    runs-on: ubuntu-latest
-    needs: [build-backend, build-frontend]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    steps:
-      - name: Checkout ArgoCD manifests repo
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ secrets.GITOPS_REPO }}
-          token: ${{ secrets.GITOPS_TOKEN }}
-          path: gitops
-
-      - name: Update deployment manifests
-        run: |
-          cd gitops
-          
-          # Update backend image in dev environment
-          sed -i "s|image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}:.*|image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}:${{ env.IMAGE_TAG }}|" argocd/dev/backend-deployment.yaml
-          
-          # Update frontend image in dev environment
-          sed -i "s|image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}:.*|image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}:${{ env.IMAGE_TAG }}|" argocd/dev/frontend-deployment.yaml
-
-      - name: Commit and push changes
-        run: |
-          cd gitops
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
-          git add argocd/dev/*.yaml
-          git commit -m "chore: update images to ${{ env.IMAGE_TAG }}"
-          git push
-
-  notify:
-    runs-on: ubuntu-latest
-    needs: [build-backend, build-frontend, update-manifest]
-    if: always()
-    steps:
-      - name: Notify Slack
-        uses: slackapi/slack-github-action@v1.26.0
-        with:
-          webhook-url: ${{ secrets.SLACK_WEBHOOK }}
-          payload: |
-            {
-              "text": "Build Status: ${{ job.status }}",
-              "blocks": [
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "*ShopCloud CI/CD Pipeline*\n*Status:* ${{ job.status }}\n*Branch:* ${{ github.ref }}\n*Commit:* ${{ github.sha }}\n*Images:*\n• Backend: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}:${{ env.IMAGE_TAG }}\n• Frontend: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}:${{ env.IMAGE_TAG }}"
-                  }
-                }
-              ]
-            }
-        if: always()
+          IMAGE=${{ env.ECR_REGISTRY }}/shopcloud-frontend:${{ github.sha }}
+          docker build -t $IMAGE -f shopcloud-frontend/Dockerfile ./shopcloud-frontend
+          docker push $IMAGE
