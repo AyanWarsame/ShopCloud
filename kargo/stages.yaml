@@ -1,0 +1,66 @@
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: dev
+  namespace: kargo
+spec:
+  subscriptions:
+    warehouse: shopcloud
+  promotionMechanisms:
+    gitRepoUpdates:
+      - repoURL: https://github.com/AyanWarsame/ShopCloud
+        writeBranch: main
+        kustomize:
+          images:
+            - image: shopcloud-backend
+              path: shopcloud-manifests/envs/dev
+            - image: shopcloud-frontend
+              path: shopcloud-manifests/envs/dev
+  verification:
+    analysisTemplates:
+      - name: smoke-test
+
+---
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: staging
+  namespace: kargo
+spec:
+  subscriptions:
+    stages:
+      - name: dev
+  promotionMechanisms:
+    gitRepoUpdates:
+      - repoURL: https://github.com/AyanWarsame/ShopCloud
+        writeBranch: main
+        kustomize:
+          images:
+            - image: shopcloud-backend
+              path: shopcloud-manifests/envs/staging
+            - image: shopcloud-frontend
+              path: shopcloud-manifests/envs/staging
+  verification:
+    analysisTemplates:
+      - name: smoke-test
+
+---
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: prod
+  namespace: kargo
+spec:
+  subscriptions:
+    stages:
+      - name: staging
+  promotionMechanisms:
+    gitRepoUpdates:
+      - repoURL: https://github.com/AyanWarsame/ShopCloud
+        writeBranch: main
+        kustomize:
+          images:
+            - image: shopcloud-backend
+              path: shopcloud-manifests/envs/prod
+            - image: shopcloud-frontend
+              path: shopcloud-manifests/envs/prod

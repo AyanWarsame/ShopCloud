@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shopcloud-backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: shopcloud-backend
+  template:
+    metadata:
+      labels:
+        app: shopcloud-backend
+    spec:
+      containers:
+        - name: shopcloud-backend
+          image: shopcloud-backend:latest
+          ports:
+            - containerPort: 8000
+          env:
+            - name: DATABASE_URL
+              value: "postgres://user:pass@postgres:5432/shopcloud"
+            - name: REDIS_URL
+              value: "redis://redis:6379"
+            - name: STRIPE_SECRET_KEY
+              value: "REPLACE_ME"
+          readinessProbe:
+            httpGet:
+              path: /health/
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 15

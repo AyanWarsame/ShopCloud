@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: shopcloud-dev
+  namespace: argocd
+spec:
+  project: shopcloud
+  source:
+    repoURL: https://github.com/AyanWarsame/ShopCloud
+    path: shopcloud-manifests/envs/dev
+    targetRevision: HEAD
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: shopcloud-dev
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

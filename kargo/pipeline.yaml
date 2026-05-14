@@ -124,12 +124,12 @@ jobs:
 
       - name: Build and push backend
         run: |
-          docker build -t ${{ needs.terraform.outputs.ecr_backend_url }}:${{ github.sha }} ./shopcloud-backend
+          docker build -t ${{ needs.terraform.outputs.ecr_backend_url }}:${{ github.sha }} ./backend
           docker push ${{ needs.terraform.outputs.ecr_backend_url }}:${{ github.sha }}
 
       - name: Build and push frontend
         run: |
-          docker build -t ${{ needs.terraform.outputs.ecr_frontend_url }}:${{ github.sha }} ./shopcloud-frontend
+          docker build -t ${{ needs.terraform.outputs.ecr_frontend_url }}:${{ github.sha }} ./frontend
           docker push ${{ needs.terraform.outputs.ecr_frontend_url }}:${{ github.sha }}
 
       - name: Scan backend image with Trivy

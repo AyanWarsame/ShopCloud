@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: smoke-test
+  namespace: kargo
+spec:
+  metrics:
+    - name: http-health
+      provider:
+        job:
+          spec:
+            template:
+              spec:
+                restartPolicy: Never
+                containers:
+                  - name: smoke
+                    image: curlimages/curl:latest
+                    command:
+                      - sh
+                      - -c
+                      - |
+                        curl -sf https://staging.shopcloud.example.com/api/v1/products/ \
+                          && echo "OK" || exit 1

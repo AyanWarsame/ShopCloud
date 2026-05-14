@@ -1,0 +1,45 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kargo
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kargo
+  namespace: kargo
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kargo-admin
+rules:
+  - apiGroups: ['kargo.akuity.io']
+    resources: ['*']
+    verbs: ['*']
+  - apiGroups: ['argoproj.io']
+    resources: ['applications']
+    verbs: ['get', 'list', 'watch']
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kargo-admin
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kargo-admin
+subjects:
+  - kind: ServiceAccount
+    name: kargo
+    namespace: kargo
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: kargo-gh-creds
+  namespace: kargo
+type: Opaque
+stringData:
+  token: REPLACE_WITH_GITHUB_PERSONAL_ACCESS_TOKEN
+  username: AyanWarsame

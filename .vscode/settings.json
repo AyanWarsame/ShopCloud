@@ -1,9 +1,0 @@
-{
-  "python.defaultInterpreterPath": "/usr/bin/python3",
-  "python.analysis.extraPaths": [
-    "${workspaceFolder}/shopcloud-backend"
-  ],
-  "python.analysis.diagnosticSeverityOverrides": {
-    "reportMissingModuleSource": "none"
-  }
-}

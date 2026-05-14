@@ -1,0 +1,24 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: shopcloud
+  namespace: argocd
+spec:
+  description: ShopCloud e-commerce platform project
+  sourceRepos:
+    - 'https://github.com/AyanWarsame/ShopCloud'
+  destinations:
+    - namespace: 'shopcloud-*'
+      server: https://kubernetes.default.svc
+    - namespace: 'kargo'
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: ''
+      kind: Namespace
+  namespaceResourceBlacklist:
+    - group: ''
+      kind: ResourceQuota
+    - group: ''
+      kind: LimitRange
+    - group: ''
+      kind: NetworkPolicy

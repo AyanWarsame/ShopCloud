@@ -1,0 +1,13 @@
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Warehouse
+metadata:
+  name: shopcloud
+  namespace: kargo
+spec:
+  subscriptions:
+    - image:
+        repoURL: 136906334786.dkr.ecr.us-east-1.amazonaws.com/shopcloud-backend
+        semverConstraint: ">=0.0.1"
+    - image:
+        repoURL: 136906334786.dkr.ecr.us-east-1.amazonaws.com/shopcloud-frontend
+        semverConstraint: ">=0.0.1"

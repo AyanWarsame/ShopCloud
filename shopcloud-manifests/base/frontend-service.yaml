@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: shopcloud-frontend
+spec:
+  selector:
+    app: shopcloud-frontend
+  ports:
+    - port: 80
+      targetPort: 4173
+      protocol: TCP
+  type: ClusterIP
